@@ -9,7 +9,6 @@ import utils
 from utils import device
 from model import ACModel
 
-
 # Parse arguments
 
 parser = argparse.ArgumentParser()
