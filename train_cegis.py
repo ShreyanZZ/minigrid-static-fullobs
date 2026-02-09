@@ -1,3 +1,4 @@
+# %%
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -6,7 +7,7 @@ import sys
 import os
 import gymnasium.spaces as spaces
 from types import SimpleNamespace
-
+# %%
 sys.path.append(os.getcwd())
 
 from utils.env import make_env
@@ -21,7 +22,7 @@ MODEL_PATH = "storage/Phase1-random/status.pt"
 # Paper Parameters
 P_SATISFACTION = 0.99
 UNSAFE_BARRIER = 1.0 / (1.0 - P_SATISFACTION) # ~100
-EPSILON = 0.05
+EPSILON = 0.01
 MAX_ITERATIONS = 20  # Max number of CEGIS loops
 EPOCHS_PER_ITER = 1000 # How long to train per loop
 
@@ -46,6 +47,8 @@ def train_learner(policy, certificate, optimizer, states, next_states, masks, tr
     policy.train()
     certificate.train()
     
+    # optimizer = optim.Adam(list(policy.parameters()) + list(certificate.parameters()), lr=0.001)
+
     # Convert set to tensor for indexing
     idx_tensor = torch.tensor(list(train_indices), device=states.device).long()
     
@@ -62,7 +65,8 @@ def train_learner(policy, certificate, optimizer, states, next_states, masks, tr
         optimizer.zero_grad()
         
         # Annealing (Soft -> Hard)
-        temp = max(0.01, 1.0 - (epoch / EPOCHS_PER_ITER))
+        # temp = max(0.01, 1.0 - (epoch / EPOCHS_PER_ITER))
+        temp=1
 
         # 1. Forward Pass
         V_curr = certificate(C_states)
@@ -98,14 +102,26 @@ def train_learner(policy, certificate, optimizer, states, next_states, masks, tr
         else:
             loss_expected = torch.tensor(0.0, device=states.device)
             
-        loss = loss_init + loss_unsafe + loss_expected
-        
+        # loss = loss_init + loss_unsafe + loss_expected
+        W_INIT = 5.0
+        W_UNSAFE = 10   # Increased from 0.05 to 0.5 (10x stronger)
+        W_DECR = 1.0     # Reduced from 5.0 (Stop punishing the jump so hard)
+
+        loss = (W_INIT * loss_init) + (W_UNSAFE * loss_unsafe) + (W_DECR * loss_expected)
         loss.backward()
         optimizer.step()
         
         if epoch % 200 == 0:
-            print(f"  Ep {epoch} | Loss: {loss.item():.4f} | Init: {loss_init.item():.4f} | Unsafe: {loss_unsafe.item():.4f} | Decr: {loss_expected.item():.4f}")
-
+            last_layer_weights = certificate.actor[-1].weight
+            w_mean = last_layer_weights.mean().item()
+            w_grad = last_layer_weights.grad.abs().mean().item() if last_layer_weights.grad is not None else 0.0
+            
+            print(f"  Ep {epoch} | Loss: {loss.item():.4f} | "
+                  f"Init: {loss_init.item():.4f} | "
+                  f"Unsafe: {loss_unsafe.item():.4f} | "
+                  f"Decr: {loss_expected.item():.4f}")
+            print(f"           > Weights: Mean={w_mean:.5f} | Grad={w_grad:.5f}")
+    
     return policy, certificate
 
 def run_verifier(policy, certificate, states, next_states, masks):
@@ -201,7 +217,7 @@ def main():
     
     # --- CEGIS LOOP ---
     for i in range(MAX_ITERATIONS):
-        print(f"\n================ ITERATION {i+1} ================")
+        print(f"\n ITERATION {i+1}")
         
         # Step A: Learner (Train on current set)
         policy, certificate = train_learner(

@@ -63,8 +63,15 @@ if args.gif:
 # Create a window to view the environment
 env.render()
 
+success_count = 0
+collision_count = 0
+timeout_count = 0
+total_episodes = 0
+print(f"Starting evaluation for {args.episodes} episodes...")
+
 for episode in range(args.episodes):
     obs, _ = env.reset()
+    total_episodes += 1
 
     while True:
         env.render()
@@ -77,7 +84,29 @@ for episode in range(args.episodes):
         agent.analyze_feedback(reward, done)
 
         if done:
+            if reward > 0:
+                success_count += 1
+                outcome = "SUCCESS"
+            elif truncated:
+                timeout_count += 1
+                outcome = "TIMEOUT"
+            else:
+                collision_count += 1
+                outcome = "CRASH"
+            print(f"Ep {episode+1}: {outcome} | Reward: {reward:.2f}")
             break
+
+print("\n" + "="*30)
+print("       EVALUATION RESULTS       ")
+print("="*30)
+print(f"Total Episodes: {total_episodes}")
+print(f"Successes:      {success_count}")
+print(f"Crashes:        {collision_count}")
+print(f"Timeouts:       {timeout_count}")
+print("-" * 30)
+if total_episodes > 0:
+    print(f"Success Probability: {success_count / total_episodes:.2%}")
+print("="*30)
 
 if args.gif:
     print("Saving gif... ", end="")
