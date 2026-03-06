@@ -1,4 +1,9 @@
 LV_t1_directnNoslip_debug2.py and LV_t1_directnNoslip.py are final python scripts that were completed. 
+
+LV_t1_directnNoslip_debug2.py script trains a 2 layer certificate, the policy weights start changing after 800 epochs. Total of 4000 epochs, and direct expression of decrease condition is used. This certificate works for 100% of the states
+
+LV_t1_directnNoslip.py script trains a 1 layer certificate, the policy weights start changing after 0 epochs. Total of 4000 epochs, and direct expression of decrease condition is used. This certificate works for 98-99% of the states.
+
 All other .ipynb or .py files (except for AbstractionRefinement and feedback_LV) starting with "LV_" were made earlier and the 2 files mentioned above were built on top of those.
 Command to run these files is:
 "nohup python -u LV_1itrlearning_policy_train.py > out_dirns.txt 2>&1 &" (COMMAND FOR LINUX MACHINE) 
